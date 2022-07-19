@@ -106,6 +106,7 @@ func (fs *FS) formatAndMount(
 		if err := exec.Command(mkfsCmd, args...).Run(); err != nil {
 			log.WithFields(f).WithError(err).Error(
 				"format of disk failed")
+			return err
 		}
 
 		// the disk has been formatted successfully try to mount it again.
