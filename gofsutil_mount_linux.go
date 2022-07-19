@@ -74,19 +74,11 @@ func (fs *FS) formatAndMount(
 		"options": opts,
 	}
 
-	// Try to mount the disk
-	log.WithFields(f).Info("attempting to mount disk")
-	mountErr := fs.mount(ctx, source, target, fsType, opts...)
-	if mountErr == nil {
-		return nil
-	}
-
-	// Mount failed. This indicates either that the disk is unformatted or
-	// it contains an unexpected filesystem.
 	existingFormat, err := fs.getDiskFormat(ctx, source)
 	if err != nil {
 		return err
 	}
+
 	if existingFormat == "" {
 		// Disk is unformatted so format it.
 		args := []string{source}
@@ -109,10 +101,17 @@ func (fs *FS) formatAndMount(
 			return err
 		}
 
-		// the disk has been formatted successfully try to mount it again.
+		// the disk has been formatted successfully try to mount it.
 		log.WithFields(f).Info(
 			"disk successfully formatted")
 		return fs.mount(ctx, source, target, fsType, opts...)
+	}
+
+	// Try to mount the disk
+	log.WithFields(f).WithField("existingFSType", existingFormat).Info("attempting to mount disk")
+	mountErr := fs.mount(ctx, source, target, fsType, opts...)
+	if mountErr == nil {
+		return nil
 	}
 
 	// Disk is already formatted and failed to mount
