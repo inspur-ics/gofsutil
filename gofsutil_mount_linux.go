@@ -21,43 +21,36 @@ var (
 	bindRemountOpts = []string{"remount"}
 )
 
-// getDiskFormat uses 'lsblk' to see if the given disk is unformatted
+// getDiskFormat uses 'blkid' to see if the given disk is unformatted
 func (fs *FS) getDiskFormat(ctx context.Context, disk string) (string, error) {
 
-	args := []string{"-n", "-o", "FSTYPE", disk}
+	args := []string{"-s", "TYPE", "-o", "value", disk}
 
 	f := log.Fields{
 		"disk": disk,
 	}
 	log.WithFields(f).WithField("args", args).Info(
-		"checking if disk is formatted using lsblk")
-	buf, err := exec.Command("lsblk", args...).CombinedOutput()
+		"checking if disk is formatted using blkid")
+	buf, err := exec.Command("blkid", args...).CombinedOutput()
 	out := string(buf)
-	log.WithField("output", out).Debug("lsblk output")
+	log.WithField("output", out).Debug("blkid output")
 
 	if err != nil {
 		log.WithFields(f).WithError(err).Error(
-			"failed to determine if disk is formatted")
-		return "", err
-	}
-
-	// Split lsblk output into lines. Unformatted devices should contain only
-	// "\n". Beware of "\n\n", that's a device with one empty partition.
-	out = strings.TrimSuffix(out, "\n") // Avoid last empty line
-	lines := strings.Split(out, "\n")
-	if lines[0] != "" {
-		// The device is formatted
-		return lines[0], nil
-	}
-
-	if len(lines) == 1 {
-		// The device is unformatted and has no dependent devices
+			"no filesystem found on disk")
 		return "", nil
 	}
 
-	// The device has dependent devices, most probably partitions (LVM, LUKS
-	// and MD RAID are reported as FSTYPE and caught above).
-	return "unknown data, probably partitions", nil
+	fsType := strings.TrimSpace(out)
+	if fsType != "" {
+		// The device is formatted
+		log.WithFields(f).WithField("fsType", fsType).Info(
+			"disk is already formatted")
+		return fsType, nil
+	}
+
+	// The device is unformatted
+	return "", nil
 }
 
 // formatAndMount uses unix utils to format and mount the given disk
