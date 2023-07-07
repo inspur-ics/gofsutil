@@ -81,7 +81,12 @@ func (fs *FS) formatAndMount(
 		}
 
 		if fsType == "ext4" || fsType == "ext3" {
-			args = []string{"-F", source}
+			args = []string{
+				"-F",
+				"-m", "0",
+				"-i", "32768",
+				source,
+			}
 		}
 		f["fsType"] = fsType
 		log.WithFields(f).Info(
